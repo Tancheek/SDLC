@@ -1,0 +1,92 @@
+@startuml class-diagram
+' Лабораторная работа №1, вариант 1
+' Конвертер белорусских рублей в евро. Каркас MVC с активной моделью.
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype polyline
+skinparam nodesep 55
+skinparam ranksep 70
+skinparam packageStyle rectangle
+hide circle
+hide empty members
+
+package "model" #EEF5FF {
+    class CurrencyModel <<активная модель>> {
+        - m_listeners : std::vector<Listener*>
+        - m_hasData : bool
+        - m_amountByn : double
+        - m_euroRate : double
+        - m_resultEur : double
+        + kMinAmount : double
+        + kMaxAmount : double
+        + kMinRate : double
+        + kMaxRate : double
+        + addListener(Listener*) : void
+        + removeListener(Listener*) : void
+        + convert(double, double) : void
+        - validate(double, double) : void
+        - notifyListeners() : void
+        + hasData() : bool
+        + amountByn() : double
+        + euroRate() : double
+        + resultEur() : double
+    }
+
+    interface Listener <<наблюдатель>> {
+        + onModelChanged() : void
+    }
+}
+
+package "view" #EAF7EA {
+    class MainWindow <<представление>> {
+        - m_model : CurrencyModel*
+        - m_amountLabel : QLabel*
+        - m_rateLabel : QLabel*
+        - m_resultLabel : QLabel*
+        - m_inputButton : QPushButton*
+        - buildUi() : void
+        - refreshLabels() : void
+        + MainWindow(CurrencyModel*)
+        + inputButton() : QPushButton*
+        + onModelChanged() : void
+    }
+
+    class InputDialog <<представление>> {
+        - m_amountEdit : QLineEdit*
+        - m_rateEdit : QLineEdit*
+        - submit() : void
+        + InputDialog(QWidget*)
+        + setValues(double, double, bool) : void
+        + valuesSubmitted(QString, QString)
+    }
+}
+
+package "controller" #FFF6E5 {
+    class ConverterController <<контроллер>> {
+        - m_model : CurrencyModel*
+        - m_view : MainWindow*
+        - m_inputDialog : InputDialog*
+        - parseNumber(QString, bool*) : double
+        - showError(QString) : void
+        + ConverterController(CurrencyModel*, MainWindow*)
+        + openInputDialog() : void
+        + handleInput(QString, QString) : void
+    }
+}
+
+MainWindow ..|> Listener : реализует
+MainWindow o-- CurrencyModel : подписан на
+CurrencyModel *-- Listener : уведомляет
+ConverterController --> CurrencyModel : передаёт данные
+ConverterController --> MainWindow : подключается к кнопке
+ConverterController --> InputDialog : создаёт и открывает
+
+note bottom of CurrencyModel
+  Активная модель: после успешного convert()
+  сама вызывает onModelChanged() у каждого
+  подписчика, поэтому контроллер не обновляет
+  форму вручную.
+end note
+
+@enduml

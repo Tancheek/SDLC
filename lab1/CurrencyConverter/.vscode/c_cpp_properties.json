@@ -1,0 +1,23 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "Qt 6.11.1 + MinGW 13.1 (x64)",
+            "compilerPath": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "C:/Qt/6.11.1/mingw_64/include/**"
+            ],
+            "defines": [
+                "QT_WIDGETS_LIB",
+                "QT_GUI_LIB",
+                "QT_CORE_LIB",
+                "UNICODE",
+                "_UNICODE"
+            ]
+        }
+    ]
+}
