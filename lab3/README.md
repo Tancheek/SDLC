@@ -22,7 +22,6 @@
 | [`mockups/render-dialog.png`](mockups/render-dialog.png) | Мокап диалога рендера и экспорта |
 | [`mockups/live-monitor.png`](mockups/live-monitor.png) | Мокап live-мониторинга (real-time) |
 | [`mockups/model-manager.png`](mockups/model-manager.png) | Мокап менеджера RVC-моделей и согласий |
-| [`tools/make_mockups.py`](tools/make_mockups.py) | Генератор мокапов (Python + Pillow), обеспечивает воспроизводимость PNG |
 
 ## Графическая часть
 
@@ -32,12 +31,6 @@
 - раздел 3.1.1 — ссылки на мокапы и UI-модель;
 - раздел 5 — полный перечень графических материалов;
 - раздел 2.7 — бизнес-требования и их трассировка на REQ.
-
-Пересобрать PNG:
-
-```powershell
-python lab3/tools/make_mockups.py
-```
 
 ## Ревью
 
