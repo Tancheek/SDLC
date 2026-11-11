@@ -38,6 +38,7 @@ SVS-RVC — десктопное приложение и C++-библиотек�
 ## Документация
 
 - [Лабораторная работа №3 — бизнес-требования](lab3/README.md)
+- [Лабораторная работа №4 — системные требования и проектирование](lab4/README.md)
 - [SRS SVS-RVC (версия 0.2)](lab3/srs/srs-svs-rvc.md)
 - [SysML v2 use-case диаграмма](lab3/mockups/use-case-diagram.png)
 - [Мокапы интерфейса](lab3/mockups/main-window.png)
