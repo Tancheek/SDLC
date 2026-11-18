@@ -16,7 +16,6 @@
 | [`sdd/project-sdd.md`](sdd/project-sdd.md) | SDD v0.1: контекст, композиция, интерфейсы, взаимодействие, состояния, зависимости |
 | [`adr/project-adr.md`](adr/project-adr.md) | ADR-001: локальный двухстадийный конвейер SVS → RVC на ONNX Runtime |
 | [`plan/iteration-plan.md`](plan/iteration-plan.md) | Оценка трудозатрат, два раунда обсуждения, план итераций и стоимость |
-| [`communication/dialog.md`](communication/dialog.md) | Текстовая переписка с заказчиком: два раунда согласования |
 
 ## Краткое содержание
 
