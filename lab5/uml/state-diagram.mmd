@@ -1,0 +1,42 @@
+---
+title: "Диаграмма состояний — SVS-RVC"
+---
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "mainBkg": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#1a1a1a",
+    "primaryBorderColor": "#333333",
+    "lineColor": "#333333",
+    "fontFamily": "Times New Roman, serif",
+    "fontSize": "11px"
+  },
+  "flowchart": {
+    "htmlLabels": true,
+    "curve": "step",
+    "padding": 4,
+    "nodeSpacing": 15,
+    "rankSpacing": 16
+  }
+}}%%
+flowchart TD
+
+  start(("●"))
+  NoProject("Нет проекта")
+  ProjectLoaded("Проект загружен")
+  Rendering("Рендер")
+  Rendered("Результат готов")
+  Exported("Файл сохранён")
+  Error("Ошибка")
+  stop(("◉"))
+
+  start --> NoProject
+  NoProject -->|открыть/импорт| ProjectLoaded
+  ProjectLoaded -->|«Рендер», модель валидна| Rendering
+  Rendering -->|успех| Rendered
+  Rendering -->|ошибка| Error
+  Error -->|исправить| ProjectLoaded
+  Rendered -->|«Экспорт»| Exported
+  Exported --> stop

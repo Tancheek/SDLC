@@ -1,0 +1,47 @@
+---
+title: "Диаграмма вариантов использования — SVS-RVC"
+---
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#ffffff",
+    "mainBkg": "#ffffff",
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#1a1a1a",
+    "primaryBorderColor": "#333333",
+    "lineColor": "#333333",
+    "fontFamily": "Times New Roman, serif",
+    "fontSize": "14px"
+  },
+  "flowchart": {
+    "htmlLabels": true,
+    "curve": "step",
+    "padding": 8,
+    "nodeSpacing": 30,
+    "rankSpacing": 35
+  }
+}}%%
+flowchart LR
+
+  C["Композитор"]
+  O["Владелец голоса"]
+
+  subgraph SYS["SVS-RVC"]
+    direction TB
+    UC1(["UC-1: Импорт MIDI и лирики"])
+    UC2(["UC-2: Выбор RVC-модели"])
+    UC3(["UC-3: Рендер"])
+    UC4(["UC-4: Прослушивание"])
+    UC5(["UC-5: Экспорт WAV/FLAC"])
+    UC6(["UC-6: Сохранение проекта"])
+    UC7(["UC-7: Библиотека моделей"])
+  end
+
+  C --- UC1
+  C --- UC3
+  C --- UC5
+  C --- UC6
+  O --- UC7
+
+  UC3 -. include .-> UC2
+  UC4 -. extend .-> UC3
