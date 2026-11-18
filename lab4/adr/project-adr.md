@@ -34,16 +34,8 @@ SVS-RVC синтезирует вокальную партию по MIDI-пар�
 
 Выбран вариант **«Локальный двухстадийный конвейер SVS → RVC на ONNX Runtime»**: только он одновременно удовлетворяет требованию локальности (REQ-SEC-001), укладывается в бюджет задержки real-time на CPU (REQ-PERF-001) и позволяет использовать готовые RVC-модели без обучения (REQ-FUNC-003). Облачный API нарушает локальность и зависит от сети; единая end-to-end модель требует обучения и не поддерживает существующую библиотеку тембров; PyTorch runtime увеличивает размер поставки и сложность сборки.
 
-**Архитектура конвейера.**
-
-1. `MidiImporter` и `LyricsAligner` формируют `AlignedScore`: ноты, длительности, слоги, язык.
-2. `PhonemeConverter` преобразует текст в фонемы; `F0Builder` строит F0-контур с вибрато, портаменто и глиссандо.
-3. `SvsEngine` исполняет SVS-модель в ONNX Runtime и получает сигнал в рабочей частоте 48 кГц.
-4. `RvcConverter` извлекает ContentVec/HuBERT-признаки, выполняет индексный поиск и переносит тембр.
-5. `AudioPostProcessor` нормализует сигнал, ограничивает клиппинг и сглаживает переходы.
-6. `AudioExporter` записывает WAV/FLAC; `AudioDevice` выводит preview/real-time.
-
-**Режимы и оптимизация.** Офлайн-рендер обрабатывает партию блоками с приоритетом качества; real-time работает чанками с look-ahead, при нехватке времени буфер увеличивается до 256 сэмплов, качество preview может снижаться. Используются ONNX Runtime CPU provider, intra-op parallelism до 8 потоков, `ORT_ENABLE_ALL`, FP32 (для preview допустим INT8), кэш ContentVec/HuBERT-признаков и отдельный приоритетный аудиопоток.
+* Конвейер: `MidiImporter` + `LyricsAligner` → `PhonemeConverter` + `F0Builder` → `SvsEngine` → `RvcConverter` → `AudioPostProcessor` → `AudioExporter`.
+* Режимы: офлайн-рендер блоками с приоритетом качества; real-time чанками с look-ahead, буфер до 256 сэмплов. ONNX Runtime CPU provider, FP32 (для preview допустим INT8).
 
 ### Последствия
 

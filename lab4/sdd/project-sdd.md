@@ -140,18 +140,10 @@ SVS-RVC — Windows-приложение для синтеза вокально�
 * **Viewpoint:** Composition
 * **Representation:** Система разделена на четыре слоя: представление (Qt 6 Widgets), приложение (контроллеры), домен (алгоритмы и сущности) и инфраструктура (файлы, ONNX Runtime, аудио, настройки). Домен не зависит от GUI, инфраструктурные библиотеки заменяемы.
 
-  | Компонент | Ответственность | Требования |
-  |-----------|-----------------|------------|
-  | `MainWindow` | Окно: партитура, лирика, инспектор голоса, транспорт, меню | REQ-FUNC-001, REQ-FUNC-004 |
-  | `ProjectController` | Координация проекта, импорт, сохранение, состояние | REQ-FUNC-001, REQ-FUNC-005 |
-  | `MidiImporter` | Разбор SMF 0/1: ноты, длительности, темп | REQ-FUNC-001 |
-  | `LyricsAligner` | Привязка слогов к нотам, предупреждение при несовпадении | REQ-FUNC-001 |
-  | `SvsEngine` | Синтез вокального сигнала по партитуре и фонемам | REQ-FUNC-003 |
-  | `RvcConverter` | Перенос тембра: ContentVec/HuBERT, индексный поиск, генератор | REQ-FUNC-002, REQ-FUNC-003 |
-  | `AudioExporter` | Запись WAV/FLAC, атомарное сохранение | REQ-FUNC-004, REQ-FUNC-005 |
-  | `ModelRepository` | Сканирование библиотеки, манифесты, проверка хешей | REQ-FUNC-002 |
-  | `OnnxModelLoader` | Загрузка ONNX-сессий, выбор execution provider | ADR-001 |
-  | `AudioDevice` | Вывод real-time-аудио, буферизация, обработка underrun | REQ-PERF-001 |
+  * **Presentation (Qt 6 Widgets):** `MainWindow`, `ScoreView`, `LyricsEditor`, `TransportBar`, `RenderDialog`, `ModelManagerDialog`, `LiveMonitorWindow`.
+  * **Application:** `ProjectController`, `RenderController`, `ModelController`, `RealtimeController`.
+  * **Domain:** `MidiImporter`, `LyricsAligner`, `PhonemeConverter`, `F0Builder`, `SvsEngine`, `RvcConverter`, `AudioPostProcessor`, `AudioExporter`, `ProjectSerializer`.
+  * **Infrastructure:** `OnnxModelLoader`, `ModelRepository`, `AudioDevice`, `FileSystem`, `SettingsStore`, `Logger`.
 
 * **SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005
 * **Decision:** ADR-001
@@ -164,68 +156,16 @@ SVS-RVC — Windows-приложение для синтеза вокально�
 * **Viewpoint:** Interface
 * **Representation:** Внешние контракты — C++-интерфейсы, форматы файлов и события UI. Все интерфейсы возвращают результат через `Result<T, Error>` и не бросают исключения через границы слоёв.
 
-  ```cpp
-  struct AlignedScore;   // ноты, слоги, темп, язык
-  struct AudioBuffer;    // сэмплы, частота, каналы, разрядность
-  struct ModelInfo;      // id, name, version, sampleRate, files, sha256
-  struct RenderSettings; // модель, параметры F0, качество
-  struct ExportSettings; // путь, формат, частота, разрядность, каналы
+  | Контракт | Вход → выход | Ошибки |
+  |----------|--------------|--------|
+  | `IMidiImporter::import` | путь `.mid` → `Score` | `E_MIDI_FORMAT`, `E_MIDI_EMPTY`, `E_MIDI_IO` |
+  | `ILyricsAligner::align` | `Lyrics`, `Score` → `AlignedScore` | `E_ALIGN_COUNT`, `E_ALIGN_LANG` |
+  | `IModelRepository::validate` | `modelId` → `ModelInfo` | `E_MODEL_NOT_FOUND`, `E_MODEL_CORRUPT`, `E_MODEL_INCOMPATIBLE` |
+  | `ISynthesisPipeline::render` | `AlignedScore`, `ModelInfo`, `RenderSettings` → `AudioBuffer` | `E_RENDER_CANCELLED`, `E_RENDER_OOM`, `E_RENDER_MODEL` |
+  | `IAudioExporter::exportAudio` | `AudioBuffer`, путь, `ExportSettings` → `void` | `E_EXPORT_IO`, `E_EXPORT_FORMAT`, `E_EXPORT_CANCELLED` |
+  | `IRealtimeMonitor::start` | `AlignedScore`, `ModelInfo`, `RenderSettings` → `void` | `E_AUDIO_DEVICE`, `E_AUDIO_UNDERRUN` |
 
-  class IMidiImporter {
-  public:
-      virtual Result<Score, ImportError> import(const std::filesystem::path& path) = 0;
-  };
-
-  class ILyricsAligner {
-  public:
-      virtual Result<AlignedScore, AlignmentError> align(const Lyrics&, const Score&) = 0;
-  };
-
-  class IModelRepository {
-  public:
-      virtual std::vector<ModelInfo> scan() = 0;
-      virtual Result<ModelInfo, ModelError> validate(const std::string& modelId) = 0;
-  };
-
-  class ISynthesisPipeline {
-  public:
-      virtual Result<AudioBuffer, RenderError> render(const AlignedScore&, const ModelInfo&,
-                                                      const RenderSettings&, IProgress&) = 0;
-  };
-
-  class IAudioExporter {
-  public:
-      virtual Result<void, ExportError> exportAudio(const AudioBuffer&,
-          const std::filesystem::path&, const ExportSettings&) = 0;
-  };
-
-  class IRealtimeMonitor {
-  public:
-      virtual Result<void, AudioError> start(const AlignedScore&, const ModelInfo&,
-                                             const RenderSettings&) = 0;
-      virtual void stop() = 0;
-  };
-  ```
-
-  Ошибки: `E_MIDI_*`, `E_ALIGN_*`, `E_MODEL_*`, `E_RENDER_*`, `E_EXPORT_*`, `E_AUDIO_*`.
-
-  **Форматы данных.**
-
-  | Формат | Назначение | Обязательные поля / параметры |
-  |--------|------------|-------------------------------|
-  | `.svsproj` | Проект | `version`, `midiPath`, `lyrics`, `language`, `modelId`, `renderSettings`, `exportSettings` |
-  | `model.json` | Манифест RVC-модели | `id`, `name`, `version`, `sampleRate`, `f0`, `onnxFiles`, `indexFile`, `license`, `sha256` |
-  | WAV / FLAC | Экспорт | PCM 16/24 bit, 44.1/48 kHz, mono/stereo |
-  | MIDI | Импорт | SMF 0/1, ноты, длительности, темп |
-
-  **Инварианты:**
-
-  * приложение не выполняет сетевых запросов для синтеза, хранения и экспорта (REQ-SEC-001);
-  * рендер запрещён, если модель не прошла `validate` (REQ-FUNC-002);
-  * частоты дискретизации модели, F0-контура и выходного буфера согласованы;
-  * экспорт идёт во временный файл с последующим переименованием;
-  * пути и имена файлов обрабатываются в UTF-8, включая кириллицу (REQ-FUNC-005);
-  * real-time-буфер — 128–256 сэмплов, целевая задержка — не более 250 мс (REQ-PERF-001).
+  Форматы: `.svsproj` — проект; `model.json` — манифест RVC-модели; WAV/FLAC — экспорт; MIDI — импорт. Инварианты: без сетевых запросов (REQ-SEC-001); рендер только с валидной моделью (REQ-FUNC-002); частоты модели, F0 и буфера согласованы; экспорт атомарный; пути в UTF-8 (REQ-FUNC-005); буфер 128–256 сэмплов, задержка ≤ 250 мс (REQ-PERF-001).
 
 * **SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005, REQ-PERF-001, REQ-SEC-001
 * **Decision:** ADR-001
@@ -246,15 +186,7 @@ SVS-RVC — Windows-приложение для синтеза вокально�
   4. `RenderController` запускает `SynthesisPipeline`: SVS-этап формирует сигнал, RVC-этап переносит тембр, постобработка убирает артефакты.
   5. Результат прослушивается в приложении, `AudioExporter` сохраняет WAV/FLAC в выбранный каталог.
 
-  **Пути отказа.**
-
-  | Сценарий | Триггер | Поведение системы | Требования |
-  |----------|---------|-------------------|------------|
-  | Несовпадение слогов и нот | Количество слогов ≠ количество нот | Предупреждение с автоматическим распределением или ручной правкой; рендер не блокируется | REQ-FUNC-001 |
-  | Повреждённая или несовместимая модель | Ошибка хеша, ONNX-файла, частоты или входов | Рендер запрещён, показывается сообщение и список валидных моделей | REQ-FUNC-002 |
-  | Отмена или совпадение имени при экспорте | Закрыт диалог; файл уже существует | Временный файл удаляется; при совпадении — запрос на перезапись | REQ-FUNC-005 |
-  | Нет аудиоустройства | Real-time-режим недоступен | Сообщение и предложение перейти в офлайн-рендер | REQ-PERF-001 |
-  | Underrun в real-time | Не хватает времени на буфер | Буфер увеличивается до 256 сэмплов, качество preview снижается, событие пишется в лог | REQ-PERF-001 |
+  **Отказы:** несовпадение слогов — предупреждение без блокировки рендера; повреждённая или несовместимая модель — рендер запрещён; отмена или совпадение имени при экспорте — временный файл удаляется, запрос перезаписи; нет аудиоустройства — предложение офлайн-рендера; underrun — буфер до 256 сэмплов и снижение качества preview.
 
 * **SRS Requirements:** REQ-FUNC-001 … REQ-FUNC-005, REQ-PERF-001, REQ-REL-001
 * **Decision:** ADR-001
@@ -300,10 +232,8 @@ SVS-RVC — Windows-приложение для синтеза вокально�
   Правила зависимостей:
 
   * UI зависит только от контроллеров приложения, не от ONNX Runtime и файловой системы напрямую;
-  * домен не зависит от Qt Widgets; допустимы только Qt Core и стандартная библиотека C++;
-  * инфраструктура реализует интерфейсы, объявленные в домене/приложении, внешние библиотеки изолированы в инфраструктурном слое;
-  * `ModelRepository` — единственный владелец метаданных моделей, `SettingsStore` — пользовательских настроек;
-  * циклических зависимостей нет; состояние проекта хранится в `.svsproj`, модели — в локальной библиотеке.
+  * домен не зависит от Qt Widgets; инфраструктура реализует интерфейсы домена, внешние библиотеки изолированы;
+  * `ModelRepository` владеет метаданными моделей, `SettingsStore` — настройками; циклов нет, проект хранится в `.svsproj`.
 
 * **SRS Requirements:** REQ-FUNC-002, REQ-FUNC-003, REQ-SEC-001, REQ-PERF-001
 * **Decision:** ADR-001
@@ -328,31 +258,6 @@ SVS-RVC — Windows-приложение для синтеза вокально�
 | BR-05 | REQ-SEC-001 | DV-001, DV-002, DV-006, ADR-001 |
 | BR-06 | REQ-FUNC-001, REQ-FUNC-004, REQ-FUNC-005 | DV-002, DV-003, DV-004, DV-005 |
 
-### Приложение B. Оценка трудозатрат и план итераций
+### Приложение B. План итераций
 
-MVP — 10 человеко-дней: UI и проект — 2, импорт MIDI и слогов — 2, менеджер моделей — 1, конвейер SVS + RVC — 3, экспорт — 1, надёжность — 1. Итерация 1 (дни 1–5): UI, проект, импорт, менеджер моделей и SVS-preview; итерация 2 (дни 6–10): RVC-тембр, A/B, экспорт и надёжность. Real-time (REQ-PERF-001) перенесён в версию 1.1. Подробный план — [`lab4/plan/iteration-plan.md`](../plan/iteration-plan.md).
-
-### Приложение C. Формат проекта `.svsproj`
-
-```json
-{
-  "version": 1,
-  "midiPath": "song.mid",
-  "lyrics": "Текст песни",
-  "language": "ru",
-  "modelId": "voice-alice-v2",
-  "renderSettings": {
-    "f0Method": "rmvpe",
-    "pitchShift": 0,
-    "quality": "high"
-  },
-  "exportSettings": {
-    "format": "wav",
-    "sampleRate": 48000,
-    "bitDepth": 24,
-    "channels": 2
-  }
-}
-```
-
-Формат расширяемый: неизвестные поля сохраняются, отсутствующие заполняются значениями по умолчанию.
+MVP — 10 человеко-дней; итерация 1 (дни 1–5) — UI, проект, импорт и preview, итерация 2 (дни 6–10) — RVC-тембр, экспорт и надёжность. Real-time перенесён в версию 1.1. Подробный план — [`lab4/plan/iteration-plan.md`](../plan/iteration-plan.md).
