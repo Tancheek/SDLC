@@ -119,108 +119,68 @@ SVS-RVC - Windows-приложение для синтеза вокальной 
 
 ### 3.2 DV-001 Контекст
 
-* **ID:** DV-001-Context
-* **Title:** Границы системы SVS-RVC
-* **Viewpoint:** Context
-* **Representation:**
+SVS-RVC - настольное приложение, работающее локально на компьютере пользователя. Внешние акторы: **композитор / продюсер** (импортирует партитуру и текст, выбирает модель, запускает рендер и экспорт), **заказчик / слушатель** (оценивает тембр и разборчивость) и **владелец голоса** (предоставляет RVC-модель и условия её использования). Внешние элементы: файловая система, аудиоустройство, локальная библиотека моделей; сеть не требуется. Сервисы системы: импорт партитуры и лирики, привязка слогов, выбор и проверка модели, офлайн-рендер, real-time-мониторинг, экспорт и сохранение проекта.
 
-  SVS-RVC - настольное приложение, работающее локально на компьютере пользователя. Внешние акторы: **композитор / продюсер** (импортирует партитуру и текст, выбирает модель, запускает рендер и экспорт), **заказчик / слушатель** (оценивает тембр и разборчивость) и **владелец голоса** (предоставляет RVC-модель и условия её использования). Внешние элементы: файловая система, аудиоустройство, локальная библиотека моделей; сеть не требуется. Сервисы системы: импорт партитуры и лирики, привязка слогов, выбор и проверка модели, офлайн-рендер, real-time-мониторинг, экспорт и сохранение проекта.
-
-* **SRS Requirements:** REQ-FUNC-001, REQ-FUNC-003, REQ-FUNC-004, REQ-SEC-001
-* **Decision:** ADR-001
-* **More Information:** Границы не включают обучение моделей и облачные вычисления; библиотека моделей принадлежит пользователю.
+**SRS Requirements:** REQ-FUNC-001, REQ-FUNC-003, REQ-FUNC-004, REQ-SEC-001
 
 ### 3.3 DV-002 Композиция
 
-* **ID:** DV-002-Composition
-* **Title:** Компонентная декомпозиция
-* **Viewpoint:** Composition
-* **Representation (логическая декомпозиция):**
-  * `MainWindow` (frontend) - партитура, лирика, инспектор голоса, транспорт, меню.
-  * `ProjectController` - импорт, сохранение проекта, состояние приложения.
-  * `MidiImporter` / `LyricsAligner` - разбор SMF 0/1 и привязка слогов к нотам.
-  * `SvsEngine` / `RvcConverter` - синтез вокального сигнала и перенос тембра RVC.
-  * `ModelRepository` / `OnnxModelLoader` - библиотека моделей, проверка манифестов и хешей, ONNX-сессии.
-  * `AudioExporter` / `AudioDevice` - запись WAV/FLAC и вывод real-time-аудио.
+* `MainWindow` (frontend) - партитура, лирика, инспектор голоса, транспорт, меню.
+* `ProjectController` - импорт, сохранение проекта, состояние приложения.
+* `MidiImporter` / `LyricsAligner` - разбор SMF 0/1 и привязка слогов к нотам.
+* `SvsEngine` / `RvcConverter` - синтез вокального сигнала и перенос тембра RVC.
+* `ModelRepository` / `OnnxModelLoader` - библиотека моделей, проверка манифестов и хешей, ONNX-сессии.
+* `AudioExporter` / `AudioDevice` - запись WAV/FLAC и вывод real-time-аудио.
 
-* **SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005
-* **Decision:** ADR-001
-* **More Information:** `SvsEngine` и `RvcConverter` скрыты за интерфейсами, поэтому модель или движок можно заменить без изменения UI.
+**SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005
 
 ### 3.4 DV-003 Интерфейс
 
-* **ID:** DV-003-Interface
-* **Title:** Контракты компонентов
-* **Viewpoint:** Interface
-* **Representation:**
+| Контракт | Вход → выход | Ошибки |
+|----------|--------------|--------|
+| `IMidiImporter::import` | путь `.mid` → `Score` | `E_MIDI_FORMAT`, `E_MIDI_EMPTY`, `E_MIDI_IO` |
+| `ILyricsAligner::align` | `Lyrics`, `Score` → `AlignedScore` | `E_ALIGN_COUNT`, `E_ALIGN_LANG` |
+| `IModelRepository::validate` | `modelId` → `ModelInfo` | `E_MODEL_NOT_FOUND`, `E_MODEL_CORRUPT`, `E_MODEL_INCOMPATIBLE` |
+| `ISynthesisPipeline::render` | `AlignedScore`, `ModelInfo`, `RenderSettings` → `AudioBuffer` | `E_RENDER_CANCELLED`, `E_RENDER_OOM`, `E_RENDER_MODEL` |
+| `IAudioExporter::exportAudio` | `AudioBuffer`, путь, `ExportSettings` → `void` | `E_EXPORT_IO`, `E_EXPORT_FORMAT`, `E_EXPORT_CANCELLED` |
+| `IRealtimeMonitor::start` | `AlignedScore`, `ModelInfo`, `RenderSettings` → `void` | `E_AUDIO_DEVICE`, `E_AUDIO_UNDERRUN` |
 
-  | Контракт | Вход → выход | Ошибки |
-  |----------|--------------|--------|
-  | `IMidiImporter::import` | путь `.mid` → `Score` | `E_MIDI_FORMAT`, `E_MIDI_EMPTY`, `E_MIDI_IO` |
-  | `ILyricsAligner::align` | `Lyrics`, `Score` → `AlignedScore` | `E_ALIGN_COUNT`, `E_ALIGN_LANG` |
-  | `IModelRepository::validate` | `modelId` → `ModelInfo` | `E_MODEL_NOT_FOUND`, `E_MODEL_CORRUPT`, `E_MODEL_INCOMPATIBLE` |
-  | `ISynthesisPipeline::render` | `AlignedScore`, `ModelInfo`, `RenderSettings` → `AudioBuffer` | `E_RENDER_CANCELLED`, `E_RENDER_OOM`, `E_RENDER_MODEL` |
-  | `IAudioExporter::exportAudio` | `AudioBuffer`, путь, `ExportSettings` → `void` | `E_EXPORT_IO`, `E_EXPORT_FORMAT`, `E_EXPORT_CANCELLED` |
-  | `IRealtimeMonitor::start` | `AlignedScore`, `ModelInfo`, `RenderSettings` → `void` | `E_AUDIO_DEVICE`, `E_AUDIO_UNDERRUN` |
+Инварианты: без сетевых запросов (REQ-SEC-001); рендер только с валидной моделью (REQ-FUNC-002); частоты модели, F0 и буфера согласованы; экспорт атомарный; пути в UTF-8 (REQ-FUNC-005); буфер 128–256 сэмплов, задержка ≤ 250 мс (REQ-PERF-001).
 
-  Инварианты: без сетевых запросов (REQ-SEC-001); рендер только с валидной моделью (REQ-FUNC-002); частоты модели, F0 и буфера согласованы; экспорт атомарный; пути в UTF-8 (REQ-FUNC-005); буфер 128–256 сэмплов, задержка ≤ 250 мс (REQ-PERF-001).
-
-* **SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005, REQ-PERF-001, REQ-SEC-001
-* **Decision:** ADR-001
-* **More Information:** Формат `.svsproj` версионируется; неизвестные поля сохраняются для обратной совместимости.
+**SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005, REQ-PERF-001, REQ-SEC-001
 
 ### 3.5 DV-004 Взаимодействие
 
-* **ID:** DV-004-Interaction
-* **Title:** Сценарии выполнения
-* **Viewpoint:** Interaction
-* **Representation (счастливый путь):**
-  1. Композитор открывает проект или импортирует MIDI и лирику.
-  2. `MidiImporter` разбирает партитуру, `LyricsAligner` привязывает слоги к нотам.
-  3. Композитор выбирает RVC-модель; `ModelRepository` проверяет манифест, хеш и совместимость.
-  4. **Отказ:** несовпадение слогов - предупреждение без блокировки рендера; повреждённая или несовместимая модель - рендер запрещён; отмена или совпадение имени при экспорте - временный файл удаляется; underrun - буфер до 256 сэмплов.
-  5. `RenderController` запускает синтез, результат прослушивается, `AudioExporter` сохраняет WAV/FLAC.
+1. Композитор открывает проект или импортирует MIDI и лирику.
+2. `MidiImporter` разбирает партитуру, `LyricsAligner` привязывает слоги к нотам.
+3. Композитор выбирает RVC-модель; `ModelRepository` проверяет манифест, хеш и совместимость.
+4. **Отказ:** несовпадение слогов - предупреждение без блокировки рендера; повреждённая или несовместимая модель - рендер запрещён; отмена или совпадение имени при экспорте - временный файл удаляется; underrun - буфер до 256 сэмплов.
+5. `RenderController` запускает синтез, результат прослушивается, `AudioExporter` сохраняет WAV/FLAC.
 
-* **SRS Requirements:** REQ-FUNC-001 … REQ-FUNC-005, REQ-PERF-001, REQ-REL-001
-* **Decision:** ADR-001
-* **More Information:** Все длительные операции выполняются в фоновом потоке с прогрессом и отменой; UI-поток не блокируется.
+**SRS Requirements:** REQ-FUNC-001 … REQ-FUNC-005, REQ-PERF-001, REQ-REL-001
 
 ### 3.6 DV-005 Динамика состояний
 
-* **ID:** DV-005-StateDynamics
-* **Title:** Состояния приложения и проекта
-* **Viewpoint:** State Dynamics
-* **Representation (таблица переходов):**
+| Состояние | Триггер | Следующее состояние / действие |
+|-----------|---------|--------------------------------|
+| `NoProject` | запуск приложения | `ProjectLoaded` после открытия или импорта |
+| `ProjectLoaded` | загружены MIDI и лирика | редактирование, выбор модели |
+| `ModelSelected` | модель прошла проверку | `Rendering` по кнопке «Рендер» |
+| `Rendering` | запущен синтез | `Rendered` или `Error` |
+| `Rendered` | синтез завершён | прослушивание, `Exporting` |
+| `Exporting` | выбран путь и формат | `Exported` или `Error` |
+| `Exported` | файл записан | `Rendered` (продолжить) |
+| `Error` | сбой или отмена | `ProjectLoaded` после исправления |
 
-  | Состояние | Триггер | Следующее состояние / действие |
-  |-----------|---------|--------------------------------|
-  | `NoProject` | запуск приложения | `ProjectLoaded` после открытия или импорта |
-  | `ProjectLoaded` | загружены MIDI и лирика | редактирование, выбор модели |
-  | `ModelSelected` | модель прошла проверку | `Rendering` по кнопке «Рендер» |
-  | `Rendering` | запущен синтез | `Rendered` или `Error` |
-  | `Rendered` | синтез завершён | прослушивание, `Exporting` |
-  | `Exporting` | выбран путь и формат | `Exported` или `Error` |
-  | `Exported` | файл записан | `Rendered` (продолжить) |
-  | `Error` | сбой или отмена | `ProjectLoaded` после исправления |
-
-* **SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005
-* **Decision:** ADR-001
-* **More Information:** `Rendering` не блокирует закрытие приложения: при выходе пользователь подтверждает отмену рендера.
+**SRS Requirements:** REQ-FUNC-001, REQ-FUNC-002, REQ-FUNC-003, REQ-FUNC-004, REQ-FUNC-005
 
 ### 3.7 DV-006 Зависимости
 
-* **ID:** DV-006-Dependency
-* **Title:** Направленные зависимости компонентов
-* **Viewpoint:** Dependency
-* **Representation:**
+UI → Application → Domain → Infrastructure → внешние библиотеки (ONNX Runtime, Qt 6, libsndfile, MIDI parser).
 
-  UI → Application → Domain → Infrastructure → внешние библиотеки (ONNX Runtime, Qt 6, libsndfile, MIDI parser).
+Циклических зависимостей нет; `ModelRepository` - единственный владелец метаданных моделей, `SettingsStore` - пользовательских настроек, проект хранится в `.svsproj`.
 
-  Циклических зависимостей нет; `ModelRepository` - единственный владелец метаданных моделей, `SettingsStore` - пользовательских настроек, проект хранится в `.svsproj`.
-
-* **SRS Requirements:** REQ-FUNC-002, REQ-FUNC-003, REQ-SEC-001, REQ-PERF-001
-* **Decision:** ADR-001
-* **More Information:** Новый формат экспорта затрагивает `AudioExporter`, `ExportSettings` и диалог экспорта; новая RVC-модель не требует изменения кода, если соответствует манифесту.
+**SRS Requirements:** REQ-FUNC-002, REQ-FUNC-003, REQ-SEC-001, REQ-PERF-001
 
 ## 4. Решения
 
