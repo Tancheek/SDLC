@@ -97,8 +97,8 @@
 | P-1 | BR-01, REQ-FUNC-003 |
 | P-2 | REQ-PERF-001, DV-005 |
 | P-3 | REQ-FUNC-002, DV-003 |
-| S-1 | DV-007, `lab5/uml/README.md` |
-| S-2 | DV-007, `lab5/uml/glossary.md` |
+| S-1 | DV-007 |
+| S-2 | DV-007 |
 | S-3 | DV-002, DV-003, DV-007 |
 | SEC-1 | REQ-SEC-001, ADR-001 |
 | SEC-2 | REQ-SEC-001, ADR-001 |
@@ -111,8 +111,6 @@
 ## Ссылки
 
 * Глоссарий: `lab5/uml/glossary.md`
-* Модель вариантов использования: `lab5/uml/use-case-spec.md`
-* Диаграммы: `lab5/uml/*.mmd`
 * SRS: `lab3/srs/srs-svs-rvc.md`
 * SDD: `lab4/sdd/project-sdd.md`
 * ADR-001: `lab4/adr/project-adr.md`
